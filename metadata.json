@@ -1,0 +1,6 @@
+{
+  "name": "Earth Rock Friend",
+  "description": "Field gemologist and mineralogist companion with offline Room database, multi-parametric physical search, dual-mode camera identification, lore and safety guide, and GemConsult AI chatbot.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
