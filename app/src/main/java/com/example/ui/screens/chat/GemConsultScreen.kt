@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -61,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,6 +75,7 @@ import com.example.ui.theme.HazardRedBg
 import com.example.ui.theme.MysticalPurple
 import com.example.ui.theme.OchreGold
 import com.example.ui.theme.WarningAmberBg
+import com.example.util.ClipboardHelper
 import kotlinx.coroutines.delay
 import java.io.InputStream
 
@@ -132,7 +135,10 @@ fun GemConsultScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -148,17 +154,21 @@ fun GemConsultScreen(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Column {
+                Column(modifier = Modifier.padding(end = 8.dp)) {
                     Text(
                         text = "GemConsult AI Guide",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = if (viewModel.isApiKeyAvailable) "Powered by Gemini 3.5 Flash" else "Expedition Knowledge Engine",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontSize = 11.sp
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -192,9 +202,17 @@ fun GemConsultScreen(
                                 }
                             }.trim()
 
-                            clipboardManager.setText(AnnotatedString(notesExport))
-                            allCopied = true
-                            Toast.makeText(context, "Copied guide notes to clipboard", Toast.LENGTH_SHORT).show()
+                            val copied = ClipboardHelper.copyToClipboard(
+                                context = context,
+                                text = notesExport,
+                                label = "GemConsult Field Notes",
+                                composeClipboard = clipboardManager,
+                                showToast = true,
+                                toastMessage = "Copied guide notes to clipboard"
+                            )
+                            if (copied) {
+                                allCopied = true
+                            }
                         }
                     },
                     modifier = Modifier.testTag("gem_consult_copy_all_btn")
@@ -377,7 +395,7 @@ fun ChatBubble(message: ChatMessage) {
     val clipboardManager = LocalClipboardManager.current
     val isUser = message.sender == MessageSender.USER
     val isSystem = message.sender == MessageSender.SYSTEM
-    var isCopied by remember { mutableStateOf(false) }
+    var isCopied by remember(message.id) { mutableStateOf(false) }
 
     LaunchedEffect(isCopied) {
         if (isCopied) {
@@ -456,9 +474,22 @@ fun ChatBubble(message: ChatMessage) {
                 ) {
                     Surface(
                         onClick = {
-                            clipboardManager.setText(AnnotatedString(message.text))
-                            isCopied = true
-                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                            val textToCopy = when {
+                                message.text.isNotBlank() -> message.text
+                                message.attachedBitmap != null -> "[Attached Specimen Image]"
+                                else -> ""
+                            }
+                            val copied = ClipboardHelper.copyToClipboard(
+                                context = context,
+                                text = textToCopy,
+                                label = "GemConsult Message",
+                                composeClipboard = clipboardManager,
+                                showToast = true,
+                                toastMessage = "Copied to clipboard"
+                            )
+                            if (copied) {
+                                isCopied = true
+                            }
                         },
                         shape = RoundedCornerShape(12.dp),
                         color = when {
@@ -466,10 +497,12 @@ fun ChatBubble(message: ChatMessage) {
                             isCopied -> ForestGreenPrimary.copy(alpha = 0.15f)
                             else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
                         },
-                        modifier = Modifier.testTag("chat_bubble_copy_btn_${message.id}")
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 60.dp, minHeight = 32.dp)
+                            .testTag("chat_bubble_copy_btn_${message.id}")
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(

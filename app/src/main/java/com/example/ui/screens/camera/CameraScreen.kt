@@ -41,8 +41,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
@@ -73,6 +75,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
@@ -88,6 +91,8 @@ import com.example.ui.screens.home.SpecimenTag
 import com.example.ui.theme.EarthBrownDark
 import com.example.ui.theme.ForestGreenDark
 import com.example.ui.theme.ForestGreenLight
+import com.example.util.ClipboardHelper
+import kotlinx.coroutines.delay
 import com.example.ui.theme.ForestGreenPrimary
 import com.example.ui.theme.HazardRed
 import com.example.ui.theme.HazardRedBg
@@ -684,23 +689,76 @@ fun AnalysisResultView(
         }
 
         // Action Buttons
+        val clipboardManager = LocalClipboardManager.current
+        val context = LocalContext.current
+        var isResultCopied by remember { mutableStateOf(false) }
+
+        LaunchedEffect(isResultCopied) {
+            if (isResultCopied) {
+                delay(2000)
+                isResultCopied = false
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OutlinedButton(
                 onClick = onReset,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("camera_btn_scan_again")
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = "Scan Another", modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Scan Again")
             }
 
+            OutlinedButton(
+                onClick = {
+                    val analysisText = buildString {
+                        appendLine("=== Earth Rock Friend: Mineral Scan Result ===")
+                        appendLine("Specimen: $title")
+                        appendLine("Formula: $formula")
+                        appendLine("Mohs Hardness: $mohs")
+                        appendLine("Crystal System: $system")
+                        appendLine("Luster: $luster")
+                        appendLine("Confidence: $confidence")
+                        appendLine("Safety Protocol: $safety")
+                        appendLine("\n[Diagnostic & Lore Details]:\n$details")
+                    }.trim()
+
+                    val success = ClipboardHelper.copyToClipboard(
+                        context = context,
+                        text = analysisText,
+                        label = "$title Scan Result",
+                        composeClipboard = clipboardManager,
+                        showToast = true,
+                        toastMessage = "Scan analysis copied to clipboard"
+                    )
+                    if (success) isResultCopied = true
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("camera_btn_copy_analysis")
+            ) {
+                Icon(
+                    imageVector = if (isResultCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                    contentDescription = "Copy Analysis",
+                    tint = if (isResultCopied) ForestGreenPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(if (isResultCopied) "Copied" else "Copy")
+            }
+
             Button(
                 onClick = onConsultAi,
                 colors = ButtonDefaults.buttonColors(containerColor = MysticalPurple),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("camera_btn_consult_ai")
             ) {
                 Icon(Icons.Default.AutoAwesome, contentDescription = "Consult GemConsult", modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))

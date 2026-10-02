@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Shield
@@ -35,6 +36,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -43,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +55,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -66,6 +71,8 @@ import com.example.ui.theme.MysticalPurpleBg
 import com.example.ui.theme.OchreGold
 import com.example.ui.theme.WarningAmber
 import com.example.ui.theme.WarningAmberBg
+import com.example.util.ClipboardHelper
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,6 +113,63 @@ fun SpecimenDetailScreen(
                     }
                 },
                 actions = {
+                    val clipboardManager = LocalClipboardManager.current
+                    val context = LocalContext.current
+                    var isDossierCopied by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(isDossierCopied) {
+                        if (isDossierCopied) {
+                            delay(2000)
+                            isDossierCopied = false
+                        }
+                    }
+
+                    IconButton(
+                        onClick = {
+                            val dossierSummary = buildString {
+                                appendLine("=== Specimen Dossier: ${mineral.name} ===")
+                                if (mineral.scientificName.isNotBlank()) appendLine("Scientific Name: ${mineral.scientificName}")
+                                appendLine("Chemical Formula: ${mineral.chemicalFormula}")
+                                appendLine("Crystal System: ${mineral.crystalSystem}")
+                                appendLine("Mohs Hardness: ${mineral.hardnessDisplay}")
+                                appendLine("Luster: ${mineral.luster}")
+                                appendLine("Streak: ${mineral.streak}")
+                                appendLine("Color: ${mineral.color}")
+                                if (mineral.isToxic) {
+                                    appendLine("\n[TOXICITY WARNING]:")
+                                    appendLine(mineral.toxicityWarnings)
+                                }
+                                appendLine("\n[Safety Protocols]:")
+                                appendLine(mineral.safetyProtocols)
+                                appendLine("\n[Metaphysical Lore]:")
+                                appendLine(mineral.mysticalProperties)
+                                appendLine("\n[Historical Chronicles]:")
+                                appendLine(mineral.historicalLore)
+                                if (mineral.fieldNotes.isNotBlank()) {
+                                    appendLine("\n[Field Notes]:")
+                                    appendLine(mineral.fieldNotes)
+                                }
+                            }.trim()
+
+                            val success = ClipboardHelper.copyToClipboard(
+                                context = context,
+                                text = dossierSummary,
+                                label = "${mineral.name} Dossier",
+                                composeClipboard = clipboardManager,
+                                showToast = true,
+                                toastMessage = "Copied ${mineral.name} dossier to clipboard"
+                            )
+                            if (success) isDossierCopied = true
+                        },
+                        modifier = Modifier.testTag("detail_btn_copy_dossier")
+                    ) {
+                        Icon(
+                            imageVector = if (isDossierCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                            contentDescription = "Copy Specimen Dossier",
+                            tint = if (isDossierCopied) ForestGreenPrimary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
                     IconButton(onClick = { onToggleFavorite(mineral.id, mineral.isFavorite) }) {
                         Icon(
                             imageVector = if (mineral.isFavorite) Icons.Default.Star else Icons.Outlined.StarBorder,
@@ -404,14 +468,42 @@ fun SpecimenDetailScreen(
                         Spacer(modifier = Modifier.width(1.dp))
                     }
 
-                    Button(
-                        onClick = {
-                            onSaveNotes(mineral.id, userNotes)
-                            notesSavedMessage = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Save Notes")
+                        val clipboardManager = LocalClipboardManager.current
+                        val context = LocalContext.current
+
+                        OutlinedButton(
+                            onClick = {
+                                ClipboardHelper.copyToClipboard(
+                                    context = context,
+                                    text = userNotes,
+                                    label = "${mineral.name} Field Notes",
+                                    composeClipboard = clipboardManager,
+                                    showToast = true,
+                                    toastMessage = "Field notes copied to clipboard"
+                                )
+                            },
+                            enabled = userNotes.isNotBlank(),
+                            modifier = Modifier.testTag("detail_btn_copy_notes")
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Notes", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Copy")
+                        }
+
+                        Button(
+                            onClick = {
+                                onSaveNotes(mineral.id, userNotes)
+                                notesSavedMessage = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.testTag("detail_btn_save_notes")
+                        ) {
+                            Text("Save Notes")
+                        }
                     }
                 }
             }
